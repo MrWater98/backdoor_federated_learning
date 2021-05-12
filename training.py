@@ -604,6 +604,7 @@ if __name__ == '__main__':
         helper.params['adversary_list'] = [0]+ \
                                 random.sample(range(helper.params['number_of_total_participants']),
                                                       helper.params['number_of_adversaries']-1)
+
         logger.info(f"Poisoned following participants: {len(helper.params['adversary_list'])}")
     else:
         helper.params['adversary_list'] = list()
@@ -612,6 +613,7 @@ if __name__ == '__main__':
     vis.text(text=dict_html(helper.params, current_time=helper.params["current_time"]),
              env=helper.params['environment_name'], opts=dict(width=300, height=400))
     logger.info(f"We use following environment for graphs:  {helper.params['environment_name']}")
+    # [1,2,3....100]
     participant_ids = range(len(helper.train_data))
     mean_acc = list()
 
@@ -630,8 +632,10 @@ if __name__ == '__main__':
     for epoch in range(helper.start_epoch, helper.params['epochs'] + 1):
         start_time = time.time()
 
+        # 上面在选择那些被纳入联邦学习的范围，下面是随机选择或者是不随机选择出攻击者，然后只有重叠部分在被认定为成功攻击
         if helper.params["random_compromise"]:
             # randomly sample adversaries.
+            # 认定100个人中10个人是坏人
             subset_data_chunks = random.sample(participant_ids, helper.params['no_models'])
 
             ### As we assume that compromised attackers can coordinate
@@ -639,6 +643,7 @@ if __name__ == '__main__':
             ### of attackers in selected round. Other attackers won't submit.
             ###
             already_poisoning = False
+            # 只有一个攻击者攻击，攻击完之后其他的都不攻击，等待下一轮
             for pos, loader_id in enumerate(subset_data_chunks):
                 if loader_id in helper.params['adversary_list']:
                     if already_poisoning:
@@ -660,16 +665,18 @@ if __name__ == '__main__':
                 subset_data_chunks = random.sample(participant_ids[1:], helper.params['no_models'])
                 logger.info(f'Selected models: {subset_data_chunks}')
         t=time.time()
+        # 训练这一轮
         weight_accumulator = train(helper=helper, epoch=epoch,
                                    train_data_sets=[(pos, helper.train_data[pos]) for pos in
                                                     subset_data_chunks],
                                    local_model=helper.local_model, target_model=helper.target_model,
                                    is_poison=helper.params['is_poison'], last_weight_accumulator=weight_accumulator)
+
         logger.info(f'time spent on training: {time.time() - t}')
         # Average the models
         helper.average_shrink_models(target_model=helper.target_model,
                                      weight_accumulator=weight_accumulator, epoch=epoch)
-
+        # 做测试和打印结果
         if helper.params['is_poison']:
             epoch_loss_p, epoch_acc_p = test_poison(helper=helper,
                                                     epoch=epoch,
