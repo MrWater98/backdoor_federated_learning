@@ -400,6 +400,7 @@ def train(helper, epoch, train_data_sets, local_model, target_model, is_poison, 
 
                     total_loss += loss.data
 
+                    print(batch)
                     if helper.params["report_train_loss"] and batch % helper.params[
                         'log_interval'] == 0 and batch > 0:
                         cur_loss = total_loss.item() / helper.params['log_interval']

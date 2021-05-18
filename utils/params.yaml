@@ -24,11 +24,11 @@ save_on_epochs: [10, 100, 500, 1000, 2000, 5000]
 
 resumed_model:
 environment_name: ppdl_experiment
-report_train_loss: false
-report_test_loss: false
-report_poison_loss: false
-track_distance: false
-track_clusters: false
+report_train_loss: true
+report_test_loss: true
+report_poison_loss: true
+track_distance: true
+track_clusters: true
 log_interval: 10
 
 modify_poison: false
