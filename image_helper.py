@@ -28,14 +28,16 @@ class ImageHelper(Helper):
     def create_model(self):
         local_model = ResNet18(name='Local',
                     created_time=self.params['current_time'])
-        device = torch.device("cpu")
-        local_model.to(device)
-        #local_model.cuda()
+        #device = torch.device("cpu")
+        #local_model.to(device)
+        local_model.cuda()
+
         target_model = ResNet18(name='Target',
                         created_time=self.params['current_time'])
-        device = torch.device("cpu")
-        local_model.to(device)
-        #target_model.cuda()
+
+        #device = torch.device("cpu")
+        #local_model.to(device)
+        target_model.cuda()
         if self.params['resumed_model']:
             loaded_params = torch.load(f"saved_models/{self.params['resumed_model']}")
             target_model.load_state_dict(loaded_params['state_dict'])
