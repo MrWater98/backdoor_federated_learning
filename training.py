@@ -420,10 +420,10 @@ def train(helper, epoch, train_data_sets, local_model, target_model, is_poison, 
             if helper.params['track_distance'] and model_id < 10:
                 # we can calculate distance to this model now.
                 distance_to_global_model = helper.model_dist_norm(model, target_params_variables)
-                #logger.info(
-                #    f'MODEL {model_id}. P-norm is {helper.model_global_norm(model):.4f}. '
-                #    f'Distance to the global model: {distance_to_global_model:.4f}. '
-                #    f'Dataset size: {train_data.size(0)}')
+                logger.info(
+                    f'MODEL {model_id}. P-norm is {helper.model_global_norm(model):.4f}. '
+                    f'Distance to the global model: {distance_to_global_model:.4f}. '
+                    f'Dataset size: {train_data.size(0)}')
                 vis.line(Y=np.array([distance_to_global_model]), X=np.array([epoch]),
                          win=f"global_dist_{helper.params['current_time']}",
                          env=helper.params['environment_name'],
