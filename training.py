@@ -37,32 +37,51 @@ criterion = torch.nn.CrossEntropyLoss()
 def train(helper, epoch, train_data_sets, local_model, target_model, is_poison, last_weight_accumulator=None):
 
     ### Accumulate weights for all participants.
+    # 首先我们定义一个完整的权重dict
+    # weight_accumulator = {}
     weight_accumulator = dict()
+    # target_model和local_model的定义都在image_helper的第28行左右
+    # 它们都是空的ResNet18的模型
+    # state_dict 包含着模型的结构，所有的参数信息
+    # tied, decoder.weight 和 __ 不是很理解
     for name, data in target_model.state_dict().items():
         #### don't scale tied weights:
         if helper.params.get('tied', False) and name == 'decoder.weight' or '__'in name:
             continue
+        # 对权重中除了decoder.weight和__的部分，其他都填充上类0数据
         weight_accumulator[name] = torch.zeros_like(data)
 
     ### This is for calculating distances
     target_params_variables = dict()
+    # name_parameters: 迭代的时候会同时遍历名字和参数
+    # 把模型的名字和参数都拿到target_params_variables，但是不需要梯度信息
     for name, param in target_model.named_parameters():
         target_params_variables[name] = target_model.state_dict()[name].clone().detach().requires_grad_(False)
     current_number_of_adversaries = 0
+    # 开始遍历train_data_sets
+    # train_data_sets就是将subset_data_chunks中的pos和train_data[pos]组合
+    # train_data_sets = (pos, train_data[pos])
     for model_id, _ in train_data_sets:
         if model_id == -1 or model_id in helper.params['adversary_list']:
             current_number_of_adversaries += 1
     logger.info(f'There are {current_number_of_adversaries} adversaries in the training.')
 
+    # 遍历10个本地模型
     for model_id in range(helper.params['no_models']):
+        # local_model初始为一个空的ResNet18网络
         model = local_model
         ## Synchronize LR and models
+        # 将target_model的参数复制到当前模型中
         model.copy_params(target_model.state_dict())
+        # 更新权重的方式选用随机梯度下降
         optimizer = torch.optim.SGD(model.parameters(), lr=helper.params['lr'],
                                     momentum=helper.params['momentum'],
                                     weight_decay=helper.params['decay'])
+        # 在PyTorch中，模型有一个train()方法，
+        # 它没有执行训练步骤。其唯一目的是将模型设置为训练模式
         model.train()
 
+        
         start_time = time.time()
         if helper.params['type'] == 'text':
             current_data_model, train_data = train_data_sets[model_id]
@@ -613,8 +632,12 @@ if __name__ == '__main__':
     vis.text(text=dict_html(helper.params, current_time=helper.params["current_time"]),
              env=helper.params['environment_name'], opts=dict(width=300, height=400))
     logger.info(f"We use following environment for graphs:  {helper.params['environment_name']}")
-    # [1,2,3....100]
+    # participant_ids=>[1,2,3....100]
+    # train_data内部对应的是(pos, DataLoader)
+    # DataLoader内部是一个迭代器，存着图片，图片来源是打乱过下标的数据集
     participant_ids = range(len(helper.train_data))
+
+    # mean_acc = []
     mean_acc = list()
 
     results = {'poison': list(), 'number_of_adversaries': helper.params['number_of_adversaries'],
@@ -629,22 +652,29 @@ if __name__ == '__main__':
     with open(f'{helper.folder_path}/params.yaml', 'w') as f:
         yaml.dump(helper.params, f)
     dist_list = list()
-    for epoch in range(helper.start_epoch, helper.params['epochs'] + 1):
-        start_time = time.time()
 
-        # 上面在选择那些被纳入联邦学习的范围，下面是随机选择或者是不随机选择出攻击者，然后只有重叠部分在被认定为成功攻击
+    # range => [1,10100]
+    for epoch in range(helper.start_epoch, helper.params['epochs'] + 1):
+        # start_time => 当前时间
+        start_time = time.time()
+        # 如果我们认定本轮有害的攻击者是随机的
         if helper.params["random_compromise"]:
             # randomly sample adversaries.
             # 认定100个人中10个人是坏人
+
             subset_data_chunks = random.sample(participant_ids, helper.params['no_models'])
 
             ### As we assume that compromised attackers can coordinate
             ### Then a single attacker will just submit scaled weights by #
             ### of attackers in selected round. Other attackers won't submit.
-            ###
+            
+            ### 因为我们假定有害的(compromised)攻击者可以合作
+            ### 那么只会有一个单独的攻击者在选择的轮次，根据攻击者的多少提交经过放缩的权重
+            ### 其他的攻击者并不会攻击
             already_poisoning = False
             # 只有一个攻击者攻击，攻击完之后其他的都不攻击，等待下一轮
             for pos, loader_id in enumerate(subset_data_chunks):
+
                 if loader_id in helper.params['adversary_list']:
                     if already_poisoning:
                         logger.info(f'Compromised: {loader_id}. Skipping.')
@@ -656,6 +686,7 @@ if __name__ == '__main__':
         else:
             if epoch in helper.params['poison_epochs']:
                 ### For poison epoch we put one adversary and other adversaries just stay quiet
+                # 对于下毒的阶段，我们就把前number_of_adversaris给丢进去
                 subset_data_chunks = [participant_ids[0]] + [-1] * (
                 helper.params['number_of_adversaries'] - 1) + \
                                      random.sample(participant_ids[1:],

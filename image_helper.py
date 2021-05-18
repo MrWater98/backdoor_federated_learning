@@ -162,8 +162,13 @@ class ImageHelper(Helper):
         else:
             ## sample indices for participants that are equally
             # splitted to 500 images per participant
+            # [1,2,3,.....,len(train_dataset)]
             all_range = list(range(len(self.train_dataset)))
+            # 这里是对所有数据做了一次随机的打乱
+            # [31,18,24,...] => 总长度为len(train_dataset)
             random.shuffle(all_range)
+            # pos 是从 1->total_participant
+            # 对应的get_train_old指的是获取pos位置所对应的数据集的DataLoader
             train_loaders = [(pos, self.get_train_old(all_range, pos))
                              for pos in range(self.params['number_of_total_participants'])]
         self.train_data = train_loaders
@@ -197,9 +202,23 @@ class ImageHelper(Helper):
         :param model_no:
         :return:
         """
-
+        # 先根据训练的数据集合总的用户数得到数据的长度
         data_len = int(len(self.train_dataset) / self.params['number_of_total_participants'])
+        # all_range[位置*数据长度:(位置+1)*数据长度]
+        # sub_indices代表着某一个人所拥有的数据，也即数据切片
         sub_indices = all_range[model_no * data_len: (model_no + 1) * data_len]
+
+        # pytorch 数据加载到模型的顺序是：
+        '''
+        dataset = MyDataset()  创建DataSet对象
+        dataloader = DataLoader(dataset)   创建DataLoader对象
+        num_epoches = 100
+        for epoch in range(num_epoches): 
+            for img, label in dataloader:   迭代dataloader
+                ....
+        '''
+        # sampler(Sampler, optional): 自定义从数据集中取样本的策略
+        # SubsetRandomSampler对sub_indices下标合集再进行随机重排
         train_loader = torch.utils.data.DataLoader(self.train_dataset,
                                            batch_size=self.params['batch_size'],
                                            sampler=torch.utils.data.sampler.SubsetRandomSampler(
