@@ -401,7 +401,7 @@ def train(helper, epoch, train_data_sets, local_model, target_model, is_poison, 
                     total_loss += loss.data
 
 
-                    if helper.params["report_train_loss"] and batch_id % helper.params['log_interval'] == 0 and batch > 0:
+                    if helper.params["report_train_loss"] and batch_id % helper.params['log_interval'] == 0 and batch_id > 0:
                         cur_loss = total_loss.item() / helper.params['log_interval']
                         elapsed = time.time() - start_time
                         logger.info('model {} | epoch {:3d} | internal_epoch {:3d} '
