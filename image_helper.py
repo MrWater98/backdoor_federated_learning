@@ -28,10 +28,14 @@ class ImageHelper(Helper):
     def create_model(self):
         local_model = ResNet18(name='Local',
                     created_time=self.params['current_time'])
-        local_model.cuda()
+        device = torch.device("cpu")
+        local_model.to(device)
+        #local_model.cuda()
         target_model = ResNet18(name='Target',
                         created_time=self.params['current_time'])
-        target_model.cuda()
+        device = torch.device("cpu")
+        local_model.to(device)
+        #target_model.cuda()
         if self.params['resumed_model']:
             loaded_params = torch.load(f"saved_models/{self.params['resumed_model']}")
             target_model.load_state_dict(loaded_params['state_dict'])
@@ -164,11 +168,15 @@ class ImageHelper(Helper):
             # splitted to 500 images per participant
             # [1,2,3,.....,len(train_dataset)]
             all_range = list(range(len(self.train_dataset)))
+
             # 这里是对所有数据做了一次随机的打乱
             # [31,18,24,...] => 总长度为len(train_dataset)
             random.shuffle(all_range)
+
             # pos 是从 1->total_participant
             # 对应的get_train_old指的是获取pos位置所对应的数据集的DataLoader
+
+            # train_loader = [(1,[DataLoader(乱序，长度为batch_size的)]]
             train_loaders = [(pos, self.get_train_old(all_range, pos))
                              for pos in range(self.params['number_of_total_participants'])]
         self.train_data = train_loaders

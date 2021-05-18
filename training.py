@@ -79,15 +79,21 @@ def train(helper, epoch, train_data_sets, local_model, target_model, is_poison, 
                                     weight_decay=helper.params['decay'])
         # 在PyTorch中，模型有一个train()方法，
         # 它没有执行训练步骤。其唯一目的是将模型设置为训练模式
+        # 将BatchNormarlization和Dropout设置为True
+        # BatchNormalization 参考：https://zhuanlan.zhihu.com/p/24810318
+        # Dropout 参考：https://blog.csdn.net/program_developer/article/details/80737724
         model.train()
 
-        
+
         start_time = time.time()
         if helper.params['type'] == 'text':
             current_data_model, train_data = train_data_sets[model_id]
             ntokens = len(helper.corpus.dictionary)
             hidden = model.init_hidden(helper.params['batch_size'])
+        # 我们这边执行的是图像
         else:
+            # train_data_sets由本函数第二个参数引用，结构是(pos, train_data[pos])
+            # train_data 的结构是(pos,train_loader = [(1,[DataLoader(乱序，长度为batch_size的)])
             _, (current_data_model, train_data) = train_data_sets[model_id]
         batch_size = helper.params['batch_size']
         ### For a 'poison_epoch' we perform single shot poisoning
@@ -96,6 +102,7 @@ def train(helper, epoch, train_data_sets, local_model, target_model, is_poison, 
             ### The participant got compromised and is out of the training.
             #  It will contribute to poisoning,
             continue
+        # 下毒的条件是is_poison且当前模型在adversary_list，且当且的epoch在下毒的epoch中
         if is_poison and current_data_model in helper.params['adversary_list'] and \
                 (epoch in helper.params['poison_epochs'] or helper.params['random_compromise']):
             logger.info('poison_now')
